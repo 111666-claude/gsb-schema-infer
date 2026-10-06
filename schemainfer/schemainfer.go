@@ -1,8 +1,6 @@
 // Package schemainfer 从记录里推断字段模式。
 package schemainfer
 
-import "sort"
-
 // Counter 记录比较次数。
 type Counter struct {
 	Scanned int
@@ -38,26 +36,22 @@ func widen(a, b string) string {
 
 // Infer 推断窗口内字段的顺序与类型。
 func Infer(records [][]Field, window int, c *Counter) []Field {
+	if window > 0 && len(records) > window {
+		records = records[len(records)-window:]
+	}
 	order := []string{}
 	best := map[string]string{}
 	for _, rec := range records {
 		for _, f := range rec {
 			c.Scanned++
-			found := false
-			for _, name := range order {
-				c.Scanned++
-				if name == f.Name {
-					found = true
-					break
-				}
-			}
-			if !found {
+			if kind, ok := best[f.Name]; ok {
+				best[f.Name] = widen(kind, f.Kind)
+			} else {
 				order = append(order, f.Name)
 				best[f.Name] = f.Kind
 			}
 		}
 	}
-	sort.Strings(order)
 	out := make([]Field, 0, len(order))
 	for _, name := range order {
 		out = append(out, Field{Name: name, Kind: best[name]})
